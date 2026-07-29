@@ -29,6 +29,11 @@ const env = {
   tmcAdminApi: process.env.TMC_ADMIN_API || "",
   tmcAccessToken: process.env.TMC_ACCESS_TOKEN || "",
   defaultTmcDiscountExpirationTime: Number(process.env.DEFAULT_TMC_DISCOUNT_EXPIRATION_TIME || 5),
+  defaultDiscountPrice: process.env.DEFAULT_DISCOUNT_PRICE === undefined
+    ? null
+    : Number(process.env.DEFAULT_DISCOUNT_PRICE),
+  defaultType: process.env.DEFAULT_TYPE || "",
+  defaultDtype: process.env.DEFAULT_DTYPE || "",
   tmcDefaultDiscountPrefix: process.env.TMC_DEFAULT_DISCOUNT_PREFIX || "TMC",
   discountCodesCleanupCron: process.env.DISCOUNT_CODES_CLEANUP_CRON || "0 0 * * *",
   flitsQueueEnabled: process.env.FLITS_QUEUE_ENABLED !== "false",

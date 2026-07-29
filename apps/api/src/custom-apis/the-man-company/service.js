@@ -37,9 +37,14 @@ const DISCOUNT_CREATE_QUERY = `
   }
 `;
 
-function parseRequestPayload(payload, defaultDuration) {
-  const type = String(payload.type || "").trim().toLowerCase();
-  const dtype = String(payload.dtype || "").trim().toLowerCase();
+function parseRequestPayload(payload, defaults = {}) {
+  const defaultDuration = defaults.defaultDuration;
+  const defaultType = String(defaults.defaultType || "").trim().toLowerCase();
+  const defaultDtype = String(defaults.defaultDtype || "").trim().toLowerCase();
+  const requestedType = String(payload.type || "").trim().toLowerCase();
+  const requestedDtype = String(payload.dtype || "").trim().toLowerCase();
+  const type = requestedType || defaultType;
+  const dtype = requestedDtype || defaultDtype;
 
   if (!["product", "cart"].includes(type)) {
     const error = new Error("type must be either product or cart");
@@ -86,7 +91,10 @@ function parseRequestPayload(payload, defaultDuration) {
   }
 
   if (dtype === "fixed") {
-    const price = Number(payload.price);
+    const priceValue = payload.price === undefined || payload.price === null || payload.price === ""
+      ? defaults.defaultDiscountPrice
+      : payload.price;
+    const price = Number(priceValue);
     if (!Number.isInteger(price) || price <= 0) {
       const error = new Error("price must be a positive integer");
       error.status = 400;
@@ -203,7 +211,12 @@ async function createShopifyDiscount(payload) {
 }
 
 async function createTmcDiscount(requestBody) {
-  const parsedPayload = parseRequestPayload(requestBody, env.defaultTmcDiscountExpirationTime);
+  const parsedPayload = parseRequestPayload(requestBody, {
+    defaultDuration: env.defaultTmcDiscountExpirationTime,
+    defaultType: env.defaultType,
+    defaultDtype: env.defaultDtype,
+    defaultDiscountPrice: env.defaultDiscountPrice
+  });
   const shop = extractShopFromAdminApi(env.tmcAdminApi);
 
   await TmcDiscountCode.updateMany(

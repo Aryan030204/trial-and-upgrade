@@ -1,6 +1,8 @@
 const { randomBytes, randomUUID } = require("crypto");
 
 function assertTmcConfig(env) {
+  const normalizedDefaultType = String(env.defaultType || "").trim().toLowerCase();
+  const normalizedDefaultDtype = String(env.defaultDtype || "").trim().toLowerCase();
   if (!env.tmcAdminApi) {
     throw new Error("Missing required env var TMC_ADMIN_API");
   }
@@ -12,6 +14,16 @@ function assertTmcConfig(env) {
   }
   if (!String(env.tmcDefaultDiscountPrefix || "").trim()) {
     throw new Error("TMC_DEFAULT_DISCOUNT_PREFIX is required");
+  }
+  if (normalizedDefaultType && !["product", "cart"].includes(normalizedDefaultType)) {
+    throw new Error("DEFAULT_TYPE must be either product or cart");
+  }
+  if (normalizedDefaultDtype && !["percent", "fixed"].includes(normalizedDefaultDtype)) {
+    throw new Error("DEFAULT_DTYPE must be either percent or fixed");
+  }
+  if ((normalizedDefaultDtype === "fixed" || env.defaultDiscountPrice !== null)
+    && (!Number.isInteger(env.defaultDiscountPrice) || env.defaultDiscountPrice <= 0)) {
+    throw new Error("DEFAULT_DISCOUNT_PRICE must be a positive integer");
   }
 }
 

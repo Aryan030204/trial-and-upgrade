@@ -16,20 +16,100 @@ const {
 
 test("assertTmcConfig rejects invalid TMC config", () => {
   assert.throws(
-    () => assertTmcConfig({ tmcAdminApi: "", tmcAccessToken: "token", defaultTmcDiscountExpirationTime: 5, tmcDefaultDiscountPrefix: "TMC" }),
+    () => assertTmcConfig({
+      tmcAdminApi: "",
+      tmcAccessToken: "token",
+      defaultTmcDiscountExpirationTime: 5,
+      defaultDiscountPrice: null,
+      defaultType: "",
+      defaultDtype: "",
+      tmcDefaultDiscountPrefix: "TMC"
+    }),
     /TMC_ADMIN_API/
   );
   assert.throws(
-    () => assertTmcConfig({ tmcAdminApi: "https://example.myshopify.com/admin/api/2026-04/graphql.json", tmcAccessToken: "", defaultTmcDiscountExpirationTime: 5, tmcDefaultDiscountPrefix: "TMC" }),
+    () => assertTmcConfig({
+      tmcAdminApi: "https://example.myshopify.com/admin/api/2026-04/graphql.json",
+      tmcAccessToken: "",
+      defaultTmcDiscountExpirationTime: 5,
+      defaultDiscountPrice: null,
+      defaultType: "",
+      defaultDtype: "",
+      tmcDefaultDiscountPrefix: "TMC"
+    }),
     /TMC_ACCESS_TOKEN/
   );
   assert.throws(
-    () => assertTmcConfig({ tmcAdminApi: "https://example.myshopify.com/admin/api/2026-04/graphql.json", tmcAccessToken: "token", defaultTmcDiscountExpirationTime: 0, tmcDefaultDiscountPrefix: "TMC" }),
+    () => assertTmcConfig({
+      tmcAdminApi: "https://example.myshopify.com/admin/api/2026-04/graphql.json",
+      tmcAccessToken: "token",
+      defaultTmcDiscountExpirationTime: 0,
+      defaultDiscountPrice: null,
+      defaultType: "",
+      defaultDtype: "",
+      tmcDefaultDiscountPrefix: "TMC"
+    }),
     /DEFAULT_TMC_DISCOUNT_EXPIRATION_TIME/
   );
   assert.throws(
-    () => assertTmcConfig({ tmcAdminApi: "https://example.myshopify.com/admin/api/2026-04/graphql.json", tmcAccessToken: "token", defaultTmcDiscountExpirationTime: 5, tmcDefaultDiscountPrefix: "" }),
+    () => assertTmcConfig({
+      tmcAdminApi: "https://example.myshopify.com/admin/api/2026-04/graphql.json",
+      tmcAccessToken: "token",
+      defaultTmcDiscountExpirationTime: 5,
+      defaultDiscountPrice: null,
+      defaultType: "",
+      defaultDtype: "",
+      tmcDefaultDiscountPrefix: ""
+    }),
     /TMC_DEFAULT_DISCOUNT_PREFIX/
+  );
+  assert.throws(
+    () => assertTmcConfig({
+      tmcAdminApi: "https://example.myshopify.com/admin/api/2026-04/graphql.json",
+      tmcAccessToken: "token",
+      defaultTmcDiscountExpirationTime: 5,
+      defaultDiscountPrice: null,
+      defaultType: "bogus",
+      defaultDtype: "",
+      tmcDefaultDiscountPrefix: "TMC"
+    }),
+    /DEFAULT_TYPE/
+  );
+  assert.throws(
+    () => assertTmcConfig({
+      tmcAdminApi: "https://example.myshopify.com/admin/api/2026-04/graphql.json",
+      tmcAccessToken: "token",
+      defaultTmcDiscountExpirationTime: 5,
+      defaultDiscountPrice: null,
+      defaultType: "",
+      defaultDtype: "bogus",
+      tmcDefaultDiscountPrefix: "TMC"
+    }),
+    /DEFAULT_DTYPE/
+  );
+  assert.throws(
+    () => assertTmcConfig({
+      tmcAdminApi: "https://example.myshopify.com/admin/api/2026-04/graphql.json",
+      tmcAccessToken: "token",
+      defaultTmcDiscountExpirationTime: 5,
+      defaultDiscountPrice: null,
+      defaultType: "",
+      defaultDtype: "fixed",
+      tmcDefaultDiscountPrefix: "TMC"
+    }),
+    /DEFAULT_DISCOUNT_PRICE/
+  );
+  assert.throws(
+    () => assertTmcConfig({
+      tmcAdminApi: "https://example.myshopify.com/admin/api/2026-04/graphql.json",
+      tmcAccessToken: "token",
+      defaultTmcDiscountExpirationTime: 5,
+      defaultDiscountPrice: 0,
+      defaultType: "",
+      defaultDtype: "",
+      tmcDefaultDiscountPrefix: "TMC"
+    }),
+    /DEFAULT_DISCOUNT_PRICE/
   );
 });
 
@@ -60,7 +140,7 @@ test("product ids are normalized to Shopify product gids", () => {
 test("parseRequestPayload validates conditional fields and applies defaults", () => {
   const parsed = parseRequestPayload(
     { type: "product", product_id: "12345", dtype: "percent", percent: 5, order_discount_combination: true },
-    6
+    { defaultDuration: 6, defaultType: "", defaultDtype: "", defaultDiscountPrice: null }
   );
   assert.equal(parsed.type, "product");
   assert.equal(parsed.productIdNumeric, "12345");
@@ -71,10 +151,44 @@ test("parseRequestPayload validates conditional fields and applies defaults", ()
   assert.match(parsed.code, /^TMC-[A-Z0-9]{8}$/);
   assert.equal(parsed.prefix, "TMC");
 
-  assert.throws(() => parseRequestPayload({ type: "product", dtype: "percent", percent: 5 }, 6), /product_id/);
-  assert.throws(() => parseRequestPayload({ type: "cart", dtype: "percent" }, 6), /percent/);
-  assert.throws(() => parseRequestPayload({ type: "cart", dtype: "fixed" }, 6), /price/);
-  assert.throws(() => parseRequestPayload({ type: "product", product_id: "12345", dtype: "percent", percent: 5, order_discount_combination: "true" }, 6), /order_discount_combination/);
+  const parsedWithDefaults = parseRequestPayload(
+    {},
+    { defaultDuration: 6, defaultType: "cart", defaultDtype: "fixed", defaultDiscountPrice: 25 }
+  );
+  assert.equal(parsedWithDefaults.type, "cart");
+  assert.equal(parsedWithDefaults.dtype, "fixed");
+  assert.equal(parsedWithDefaults.price, 25);
+  assert.equal(parsedWithDefaults.percent, null);
+  assert.equal(parsedWithDefaults.durationMinutes, 6);
+
+  assert.throws(
+    () => parseRequestPayload(
+      { type: "product", dtype: "percent", percent: 5 },
+      { defaultDuration: 6, defaultType: "", defaultDtype: "", defaultDiscountPrice: null }
+    ),
+    /product_id/
+  );
+  assert.throws(
+    () => parseRequestPayload(
+      { type: "cart", dtype: "percent" },
+      { defaultDuration: 6, defaultType: "", defaultDtype: "", defaultDiscountPrice: null }
+    ),
+    /percent/
+  );
+  assert.throws(
+    () => parseRequestPayload(
+      { type: "cart", dtype: "fixed", price: "" },
+      { defaultDuration: 6, defaultType: "", defaultDtype: "", defaultDiscountPrice: null }
+    ),
+    /price/
+  );
+  assert.throws(
+    () => parseRequestPayload(
+      { type: "product", product_id: "12345", dtype: "percent", percent: 5, order_discount_combination: "true" },
+      { defaultDuration: 6, defaultType: "", defaultDtype: "", defaultDiscountPrice: null }
+    ),
+    /order_discount_combination/
+  );
 });
 
 test("buildCustomerGets shapes cart and product discounts correctly", () => {
