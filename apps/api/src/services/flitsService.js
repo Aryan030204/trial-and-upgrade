@@ -10,6 +10,7 @@ const ELIGIBLE_QUANTITY_TAG_PREFIX = "eligible-qty-";
 const CREDITED_ONCE_TAG = "credited-once";
 const CREDITED_TWICE_TAG = "credited-twice";
 const MAX_CUSTOM_CREDIT_LIMIT = 2;
+const MARKETPLACE_CUSTOMER_CREDIT_DELAY_MS = 15000;
 
 function clearLock(job) {
   job.lockedAt = undefined;
@@ -160,6 +161,8 @@ function creditSkipMessage(reason) {
       return "This mobile number has already played.";
     case "already_played":
       return "This mobile number has already played.";
+    case "non_marketplace_credit_disabled":
+      return "Wallet credit is only issued to marketplace customers for this campaign.";
     default:
       return "Wallet credit was not issued.";
   }
@@ -220,6 +223,16 @@ async function enqueueCredit(
     const result = creditResult({ reason: "flits_credit_disabled" });
     return includeResult ? result : null;
   }
+  if (campaign.customCredit?.marketplaceOnlyCredit && participant.customerSource !== "marketplace") {
+    logger.info?.("[flits-queue] credit skipped (marketplace-only)", {
+      store: store?.slug,
+      campaignId: campaign?._id,
+      participantId: participant?._id,
+      customerSource: participant?.customerSource
+    });
+    const result = creditResult({ reason: "non_marketplace_credit_disabled" });
+    return includeResult ? result : null;
+  }
   const creditLimit = await customCreditLimitDecision(
     { store, campaign, participant },
     { JobModel, fetchCustomerByGid, logger }
@@ -253,12 +266,13 @@ async function enqueueCredit(
     return includeResult ? result : null;
   }
 
+  const firstRunDelayMs = participant.customerSource === "marketplace" ? MARKETPLACE_CUSTOMER_CREDIT_DELAY_MS : 0;
   const job = await JobModel.create({
     tenantStoreId: store._id,
     campaignId: campaign._id,
     participantId: participant._id,
     status: "pending",
-    nextRunAt: new Date(),
+    nextRunAt: new Date(Date.now() + firstRunDelayMs),
     payload: {
       customer_email: creditCustomer.email,
       shopify_customer_id: creditCustomer.id || "",
