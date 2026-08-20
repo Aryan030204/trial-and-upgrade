@@ -31,7 +31,13 @@ test("assertTmcCleanupConfig validates cron config", () => {
     assertTmcCleanupConfig({
       tmcAdminApi: "https://the-man-company.myshopify.com/admin/api/2026-04/graphql.json",
       tmcAccessToken: "token",
+      tmcFlitsToken: "flits-token",
+      tmcFlitsUserId: "123",
+      tmcFlitsAppName: "TMC",
       defaultTmcDiscountExpirationTime: 5,
+      defaultDiscountPrice: null,
+      defaultType: "",
+      defaultDtype: "",
       tmcDefaultDiscountPrefix: "TMC",
       discountCodesCleanupCron: "0 0 * * *"
     })
@@ -41,7 +47,13 @@ test("assertTmcCleanupConfig validates cron config", () => {
       assertTmcCleanupConfig({
         tmcAdminApi: "https://the-man-company.myshopify.com/admin/api/2026-04/graphql.json",
         tmcAccessToken: "token",
+        tmcFlitsToken: "flits-token",
+        tmcFlitsUserId: "123",
+        tmcFlitsAppName: "TMC",
         defaultTmcDiscountExpirationTime: 5,
+        defaultDiscountPrice: null,
+        defaultType: "",
+        defaultDtype: "",
         tmcDefaultDiscountPrefix: "TMC",
         discountCodesCleanupCron: "@daily"
       }),

@@ -9,6 +9,15 @@ function assertTmcConfig(env) {
   if (!env.tmcAccessToken) {
     throw new Error("Missing required env var TMC_ACCESS_TOKEN");
   }
+  if (!env.tmcFlitsToken) {
+    throw new Error("Missing required env var TMC_FLITS_TOKEN");
+  }
+  if (!env.tmcFlitsUserId) {
+    throw new Error("Missing required env var TMC_FLITS_USERID");
+  }
+  if (!env.tmcFlitsAppName) {
+    throw new Error("Missing required env var TMC_FLITS_APPNAME");
+  }
   if (!Number.isInteger(env.defaultTmcDiscountExpirationTime) || env.defaultTmcDiscountExpirationTime <= 0) {
     throw new Error("DEFAULT_TMC_DISCOUNT_EXPIRATION_TIME must be a positive integer");
   }
@@ -42,6 +51,10 @@ function assertTmcCleanupConfig(env) {
 function extractShopFromAdminApi(adminApi) {
   const parsed = new URL(adminApi);
   return parsed.hostname;
+}
+
+function numericShopifyId(gid) {
+  return String(gid || "").split("/").pop();
 }
 
 function normalizeCodeToken(value) {
@@ -109,6 +122,7 @@ module.exports = {
   assertTmcConfig,
   assertTmcCleanupConfig,
   extractShopFromAdminApi,
+  numericShopifyId,
   buildDiscountCode,
   normalizeDuration,
   normalizeProductId,

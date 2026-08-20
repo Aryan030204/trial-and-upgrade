@@ -28,6 +28,9 @@ const env = {
   devReturnOtp: process.env.DEV_RETURN_OTP === "true",
   tmcAdminApi: process.env.TMC_ADMIN_API || "",
   tmcAccessToken: process.env.TMC_ACCESS_TOKEN || "",
+  tmcFlitsToken: process.env.TMC_FLITS_TOKEN || "",
+  tmcFlitsUserId: process.env.TMC_FLITS_USERID || "",
+  tmcFlitsAppName: process.env.TMC_FLITS_APPNAME || "",
   defaultTmcDiscountExpirationTime: Number(process.env.DEFAULT_TMC_DISCOUNT_EXPIRATION_TIME || 5),
   defaultDiscountPrice: process.env.DEFAULT_DISCOUNT_PRICE === undefined
     ? null

@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
   extractShopFromAdminApi,
+  numericShopifyId,
   buildDiscountCode,
   normalizeDuration,
   normalizeProductId,
@@ -11,106 +12,40 @@ const {
 const {
   parseRequestPayload,
   buildCustomerGets,
-  buildShopifyDiscountInput
+  buildShopifyDiscountInput,
+  buildTmcFlitsLookupUrl,
+  findTmcCustomerIdByPhone,
+  getTmcCashback
 } = require("../src/custom-apis/the-man-company/service");
 
 test("assertTmcConfig rejects invalid TMC config", () => {
+  const validBaseConfig = {
+    tmcAdminApi: "https://example.myshopify.com/admin/api/2026-04/graphql.json",
+    tmcAccessToken: "token",
+    tmcFlitsToken: "flits-token",
+    tmcFlitsUserId: "123",
+    tmcFlitsAppName: "TMC",
+    defaultTmcDiscountExpirationTime: 5,
+    defaultDiscountPrice: null,
+    defaultType: "",
+    defaultDtype: "",
+    tmcDefaultDiscountPrefix: "TMC"
+  };
+
+  assert.throws(() => assertTmcConfig({ ...validBaseConfig, tmcAdminApi: "" }), /TMC_ADMIN_API/);
+  assert.throws(() => assertTmcConfig({ ...validBaseConfig, tmcAccessToken: "" }), /TMC_ACCESS_TOKEN/);
+  assert.throws(() => assertTmcConfig({ ...validBaseConfig, tmcFlitsToken: "" }), /TMC_FLITS_TOKEN/);
+  assert.throws(() => assertTmcConfig({ ...validBaseConfig, tmcFlitsUserId: "" }), /TMC_FLITS_USERID/);
+  assert.throws(() => assertTmcConfig({ ...validBaseConfig, tmcFlitsAppName: "" }), /TMC_FLITS_APPNAME/);
   assert.throws(
-    () => assertTmcConfig({
-      tmcAdminApi: "",
-      tmcAccessToken: "token",
-      defaultTmcDiscountExpirationTime: 5,
-      defaultDiscountPrice: null,
-      defaultType: "",
-      defaultDtype: "",
-      tmcDefaultDiscountPrefix: "TMC"
-    }),
-    /TMC_ADMIN_API/
-  );
-  assert.throws(
-    () => assertTmcConfig({
-      tmcAdminApi: "https://example.myshopify.com/admin/api/2026-04/graphql.json",
-      tmcAccessToken: "",
-      defaultTmcDiscountExpirationTime: 5,
-      defaultDiscountPrice: null,
-      defaultType: "",
-      defaultDtype: "",
-      tmcDefaultDiscountPrefix: "TMC"
-    }),
-    /TMC_ACCESS_TOKEN/
-  );
-  assert.throws(
-    () => assertTmcConfig({
-      tmcAdminApi: "https://example.myshopify.com/admin/api/2026-04/graphql.json",
-      tmcAccessToken: "token",
-      defaultTmcDiscountExpirationTime: 0,
-      defaultDiscountPrice: null,
-      defaultType: "",
-      defaultDtype: "",
-      tmcDefaultDiscountPrefix: "TMC"
-    }),
+    () => assertTmcConfig({ ...validBaseConfig, defaultTmcDiscountExpirationTime: 0 }),
     /DEFAULT_TMC_DISCOUNT_EXPIRATION_TIME/
   );
-  assert.throws(
-    () => assertTmcConfig({
-      tmcAdminApi: "https://example.myshopify.com/admin/api/2026-04/graphql.json",
-      tmcAccessToken: "token",
-      defaultTmcDiscountExpirationTime: 5,
-      defaultDiscountPrice: null,
-      defaultType: "",
-      defaultDtype: "",
-      tmcDefaultDiscountPrefix: ""
-    }),
-    /TMC_DEFAULT_DISCOUNT_PREFIX/
-  );
-  assert.throws(
-    () => assertTmcConfig({
-      tmcAdminApi: "https://example.myshopify.com/admin/api/2026-04/graphql.json",
-      tmcAccessToken: "token",
-      defaultTmcDiscountExpirationTime: 5,
-      defaultDiscountPrice: null,
-      defaultType: "bogus",
-      defaultDtype: "",
-      tmcDefaultDiscountPrefix: "TMC"
-    }),
-    /DEFAULT_TYPE/
-  );
-  assert.throws(
-    () => assertTmcConfig({
-      tmcAdminApi: "https://example.myshopify.com/admin/api/2026-04/graphql.json",
-      tmcAccessToken: "token",
-      defaultTmcDiscountExpirationTime: 5,
-      defaultDiscountPrice: null,
-      defaultType: "",
-      defaultDtype: "bogus",
-      tmcDefaultDiscountPrefix: "TMC"
-    }),
-    /DEFAULT_DTYPE/
-  );
-  assert.throws(
-    () => assertTmcConfig({
-      tmcAdminApi: "https://example.myshopify.com/admin/api/2026-04/graphql.json",
-      tmcAccessToken: "token",
-      defaultTmcDiscountExpirationTime: 5,
-      defaultDiscountPrice: null,
-      defaultType: "",
-      defaultDtype: "fixed",
-      tmcDefaultDiscountPrefix: "TMC"
-    }),
-    /DEFAULT_DISCOUNT_PRICE/
-  );
-  assert.throws(
-    () => assertTmcConfig({
-      tmcAdminApi: "https://example.myshopify.com/admin/api/2026-04/graphql.json",
-      tmcAccessToken: "token",
-      defaultTmcDiscountExpirationTime: 5,
-      defaultDiscountPrice: 0,
-      defaultType: "",
-      defaultDtype: "",
-      tmcDefaultDiscountPrefix: "TMC"
-    }),
-    /DEFAULT_DISCOUNT_PRICE/
-  );
+  assert.throws(() => assertTmcConfig({ ...validBaseConfig, tmcDefaultDiscountPrefix: "" }), /TMC_DEFAULT_DISCOUNT_PREFIX/);
+  assert.throws(() => assertTmcConfig({ ...validBaseConfig, defaultType: "bogus" }), /DEFAULT_TYPE/);
+  assert.throws(() => assertTmcConfig({ ...validBaseConfig, defaultDtype: "bogus" }), /DEFAULT_DTYPE/);
+  assert.throws(() => assertTmcConfig({ ...validBaseConfig, defaultDtype: "fixed" }), /DEFAULT_DISCOUNT_PRICE/);
+  assert.throws(() => assertTmcConfig({ ...validBaseConfig, defaultDiscountPrice: 0 }), /DEFAULT_DISCOUNT_PRICE/);
 });
 
 test("extractShopFromAdminApi returns the Shopify hostname", () => {
@@ -118,6 +53,10 @@ test("extractShopFromAdminApi returns the Shopify hostname", () => {
     extractShopFromAdminApi("https://the-man-company.myshopify.com/admin/api/2026-04/graphql.json"),
     "the-man-company.myshopify.com"
   );
+});
+
+test("numericShopifyId returns the numeric id suffix from a Shopify gid", () => {
+  assert.equal(numericShopifyId("gid://shopify/Customer/9391685271847"), "9391685271847");
 });
 
 test("buildDiscountCode preserves prefix and falls back to random", () => {
@@ -250,4 +189,141 @@ test("buildShopifyDiscountInput creates a product discount with one-use-per-cust
   assert.equal(result.input.combinesWith.productDiscounts, false);
   assert.equal(result.input.combinesWith.shippingDiscounts, false);
   assert.deepEqual(result.input.customerGets.items, { products: { productsToAdd: ["gid://shopify/Product/123"] } });
+});
+
+test("buildTmcFlitsLookupUrl uses env-based Flits credentials", () => {
+  assert.match(buildTmcFlitsLookupUrl("9391685271847"), /api\/1\/.*\/9391685271847\/credit\/get_credit\?token=/);
+});
+
+test("findTmcCustomerIdByPhone returns the single Shopify customer id", async () => {
+  const client = {
+    async post() {
+      return {
+        data: {
+          data: {
+            customers: {
+              nodes: [{ id: "gid://shopify/Customer/9391685271847" }]
+            }
+          }
+        }
+      };
+    }
+  };
+
+  const customerId = await findTmcCustomerIdByPhone("+919289641150", { client });
+  assert.equal(customerId, "9391685271847");
+});
+
+test("findTmcCustomerIdByPhone throws 404 when no customer is found", async () => {
+  const client = {
+    async post() {
+      return { data: { data: { customers: { nodes: [] } } } };
+    }
+  };
+
+  await assert.rejects(
+    () => findTmcCustomerIdByPhone("+919289641150", { client }),
+    (err) => err.status === 404 && /No customer found/.test(err.message)
+  );
+});
+
+test("findTmcCustomerIdByPhone throws 409 when multiple customers match", async () => {
+  const client = {
+    async post() {
+      return {
+        data: {
+          data: {
+            customers: {
+              nodes: [
+                { id: "gid://shopify/Customer/1" },
+                { id: "gid://shopify/Customer/2" }
+              ]
+            }
+          }
+        }
+      };
+    }
+  };
+
+  await assert.rejects(
+    () => findTmcCustomerIdByPhone("+919289641150", { client }),
+    (err) => err.status === 409 && /Multiple customers found/.test(err.message)
+  );
+});
+
+test("findTmcCustomerIdByPhone maps Shopify transport errors to 502", async () => {
+  const client = {
+    async post() {
+      const error = new Error("upstream unavailable");
+      error.response = { data: { errors: [{ message: "Shopify broke" }] } };
+      throw error;
+    }
+  };
+
+  await assert.rejects(
+    () => findTmcCustomerIdByPhone("+919289641150", { client }),
+    (err) => err.status === 502 && /Shopify broke/.test(err.message)
+  );
+});
+
+test("getTmcCashback returns points and credits from Flits", async () => {
+  const shopify = {
+    async post() {
+      return {
+        data: {
+          data: {
+            customers: {
+              nodes: [{ id: "gid://shopify/Customer/9391685271847" }]
+            }
+          }
+        }
+      };
+    }
+  };
+  const flits = {
+    async get(url) {
+      assert.match(url, /9391685271847/);
+      return {
+        data: {
+          customer: {
+            points: 42,
+            credits: 9
+          }
+        }
+      };
+    }
+  };
+
+  const result = await getTmcCashback({ phone: "+919289641150" }, { shopify, flits });
+  assert.deepEqual(result, {
+    customerId: "9391685271847",
+    flits_points: 42,
+    flits_credits: 9
+  });
+});
+
+test("getTmcCashback throws 502 when Flits payload is unusable", async () => {
+  const shopify = {
+    async post() {
+      return {
+        data: {
+          data: {
+            customers: {
+              nodes: [{ id: "gid://shopify/Customer/9391685271847" }]
+            }
+          }
+        }
+      };
+    }
+  };
+  const flits = {
+    async get() {
+      return { data: { status: true } };
+    }
+  };
+
+  await assert.rejects(
+    () => getTmcCashback({ phone: "+919289641150" }, { shopify, flits }),
+    (err) => err.status === 502 && /Invalid Flits response/.test(err.message)
+  );
 });
