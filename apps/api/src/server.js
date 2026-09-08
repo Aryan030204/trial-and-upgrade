@@ -11,6 +11,7 @@ const adminRoutes = require("./routes/adminRoutes");
 const publicRoutes = require("./routes/publicRoutes");
 const webhookRoutes = require("./routes/webhookRoutes");
 const tmcCustomApiRoutes = require("./custom-apis/the-man-company/routes");
+const bbbCustomApiRoutes = require("./custom-apis/bbb/routes");
 const { rawBodySaver } = require("./middleware/webhook");
 const { notFound, errorHandler } = require("./middleware/errorHandler");
 const { setSocketServer } = require("./services/funnelService");
@@ -73,6 +74,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/public", publicRoutes);
 app.use("/api/webhooks", webhookRoutes);
 app.use("/api/custom-apis/the-man-company", tmcCustomApiRoutes);
+app.use("/api/custom-apis/bbb", bbbCustomApiRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
