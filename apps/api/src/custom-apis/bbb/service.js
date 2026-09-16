@@ -1,12 +1,14 @@
 const axios = require("axios");
 const env = require("../../config/env");
 const { numericShopifyId } = require("./helpers");
+const { pickContactPhoneCustomer } = require("../../services/shopifyService");
 
 const BBB_CUSTOMER_LOOKUP_QUERY = `
   query GetBbbCustomersByPhone($query: String!) {
     customers(first: 10, query: $query) {
       nodes {
         id
+        phone
       }
     }
   }
@@ -75,13 +77,18 @@ async function findBbbCustomerIdByPhone(phone, { client = shopifyClient() } = {}
     error.status = 404;
     throw error;
   }
-  if (nodes.length > 1) {
-    const error = new Error("Multiple customers found for this phone");
-    error.status = 409;
-    throw error;
+  if (nodes.length === 1) {
+    return numericShopifyId(nodes[0].id);
   }
 
-  return numericShopifyId(nodes[0].id);
+  const contactMatch = pickContactPhoneCustomer(nodes, normalizedPhone);
+  if (contactMatch) {
+    return numericShopifyId(contactMatch.id);
+  }
+
+  const error = new Error("Multiple customers found for this phone");
+  error.status = 409;
+  throw error;
 }
 
 function buildBbbFlitsLookupUrl(customerId) {
