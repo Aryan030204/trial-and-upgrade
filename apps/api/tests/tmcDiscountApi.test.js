@@ -251,6 +251,28 @@ test("findTmcCustomerIdByPhone throws 409 when multiple customers match", async 
   );
 });
 
+test("findTmcCustomerIdByPhone picks the candidate whose contact phone matches when multiple customers match by address", async () => {
+  const client = {
+    async post() {
+      return {
+        data: {
+          data: {
+            customers: {
+              nodes: [
+                { id: "gid://shopify/Customer/9144937087271", phone: null },
+                { id: "gid://shopify/Customer/9033826271527", phone: "+917737128689" }
+              ]
+            }
+          }
+        }
+      };
+    }
+  };
+
+  const customerId = await findTmcCustomerIdByPhone("+917737128689", { client });
+  assert.equal(customerId, "9033826271527");
+});
+
 test("findTmcCustomerIdByPhone maps Shopify transport errors to 502", async () => {
   const client = {
     async post() {

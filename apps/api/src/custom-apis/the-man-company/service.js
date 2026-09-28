@@ -1,6 +1,7 @@
 const axios = require("axios");
 const env = require("../../config/env");
 const TmcDiscountCode = require("../../models/TmcDiscountCode");
+const { pickContactPhoneCustomer } = require("../../services/shopifyService");
 const {
   extractShopFromAdminApi,
   numericShopifyId,
@@ -43,6 +44,7 @@ const TMC_CUSTOMER_LOOKUP_QUERY = `
     customers(first: 10, query: $query) {
       nodes {
         id
+        phone
       }
     }
   }
@@ -232,13 +234,18 @@ async function findTmcCustomerIdByPhone(phone, { client = shopifyClient() } = {}
     error.status = 404;
     throw error;
   }
-  if (nodes.length > 1) {
-    const error = new Error("Multiple customers found for this phone");
-    error.status = 409;
-    throw error;
+  if (nodes.length === 1) {
+    return numericShopifyId(nodes[0].id);
   }
 
-  return numericShopifyId(nodes[0].id);
+  const contactMatch = pickContactPhoneCustomer(nodes, normalizedPhone);
+  if (contactMatch) {
+    return numericShopifyId(contactMatch.id);
+  }
+
+  const error = new Error("Multiple customers found for this phone");
+  error.status = 409;
+  throw error;
 }
 
 function buildTmcFlitsLookupUrl(customerId) {
